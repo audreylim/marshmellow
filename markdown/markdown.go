@@ -13,7 +13,7 @@ import (
 
 func main() {
 	// Specify target markdown file with -markdown=<filename>. Otherwise the default name is index.md. Same for the html file.
-	fileMD := flag.String("markdown", "index.md", "a string")
+	fileMD := flag.String("md", "index.md", "a string")
 	fileHTML := flag.String("html", "index.html", "a string")
 	flag.Parse()
 
