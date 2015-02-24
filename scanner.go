@@ -1,4 +1,4 @@
-package markdown
+package md
 
 import (
 	"bufio"

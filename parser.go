@@ -1,4 +1,4 @@
-package markdown
+package md
 
 import (
 	"io"
@@ -27,8 +27,11 @@ func NewParser(r io.Reader) *Parser {
 
 type stateFn func(*Parser) stateFn
 
-func (p *Parser) Parse() {
-	p.run(p.stateParse())
+func (p *Parser) Parse() string {
+	if v := p.run(p.stateParse()); v == nil {
+		return "eof"
+	}
+	return ""
 }
 
 // Chain states until EOF.
@@ -72,8 +75,12 @@ func (p *Parser) stateHeader() stateFn {
 	case WS:
 		t2, l2 := p.s.Scan()
 		if t2 == STRINGLIT {
-			go func() { FormatterChn <- p.tempHeader }()
+			tempheader := p.tempHeader
+
+			go func() { FormatterChn <- tempheader }()
 			go func() { StringlitChn <- l2 }()
+
+			p.tempHeader = ""
 			return p.stateParse()
 		}
 	default:
@@ -105,8 +112,12 @@ func (p *Parser) stateDoubleStar() stateFn {
 		p.tempSlice = append(p.tempSlice, p.tempString)
 	}
 
+	joinSlice := strings.Join(p.tempSlice, "")
+
 	go func() { FormatterChn <- "**" }()
-	go func() { StringlitChn <- strings.Join(p.tempSlice, "") }()
+	go func() { StringlitChn <- joinSlice }()
+
+	p.tempSlice = []string{}
 
 	return p.stateParse()
 }

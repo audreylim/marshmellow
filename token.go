@@ -1,4 +1,4 @@
-package markdown
+package md
 
 type ItemType int
 
