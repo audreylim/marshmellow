@@ -8,14 +8,12 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	md "github.com/audreylim/go-markdown"
 )
 
 func main() {
 	var HTMLTextSlice []string
-	timebreaker := make(chan string)
 
 	r1 := regexp.MustCompile("[a-zA-Z0-9]+.md")
 	r2 := regexp.MustCompile("[a-zA-Z0-9]+")
@@ -50,47 +48,30 @@ func main() {
 
 			// Parse markdown file.
 			p := md.NewParser(readMDFile)
-			go func() {
-				if v := p.Parse(); v == "eof" {
-					timebreaker <- "x"
-				}
-			}()
+			p.Parse()
 
 			// Write to HTML file.
-			go func() {
-				for {
-					formatter := <-md.FormatterChn
-					stringlit := <-md.StringlitChn
-					switch formatter {
-					case "#":
-						HTMLTextSlice = append(HTMLTextSlice, "<h1>"+stringlit+"</h1>")
-					case "##":
-						HTMLTextSlice = append(HTMLTextSlice, "<h2>"+stringlit+"</h2>")
-					case "###":
-						HTMLTextSlice = append(HTMLTextSlice, "<h3>"+stringlit+"</h3>")
-					case "####":
-						HTMLTextSlice = append(HTMLTextSlice, "<h4>"+stringlit+"</h4>")
-					case "#####":
-						HTMLTextSlice = append(HTMLTextSlice, "<h5>"+stringlit+"</h5>")
-					case "######":
-						HTMLTextSlice = append(HTMLTextSlice, "<h6>"+stringlit+"</h6>")
-					case "bullet":
-						HTMLTextSlice = append(HTMLTextSlice, "<ul>\n"+stringlit+"</ul>")
-					case "para":
-						HTMLTextSlice = append(HTMLTextSlice, "<p>"+stringlit+"</p>")
-					}
-
-				}
-			}()
-
-			select {
-			case _, ok := <-timebreaker:
-				if !ok {
-					time.Sleep(time.Second * 5)
+			for i := 0; i < len(p.Formatter); i++ {
+				switch p.Formatter[i] {
+				case "#":
+					HTMLTextSlice = append(HTMLTextSlice, "<h1>"+p.Stringlit[i]+"</h1>")
+				case "##":
+					HTMLTextSlice = append(HTMLTextSlice, "<h2>"+p.Stringlit[i]+"</h2>")
+				case "###":
+					HTMLTextSlice = append(HTMLTextSlice, "<h3>"+p.Stringlit[i]+"</h3>")
+				case "####":
+					HTMLTextSlice = append(HTMLTextSlice, "<h4>"+p.Stringlit[i]+"</h4>")
+				case "#####":
+					HTMLTextSlice = append(HTMLTextSlice, "<h5>"+p.Stringlit[i]+"</h5>")
+				case "######":
+					HTMLTextSlice = append(HTMLTextSlice, "<h6>"+p.Stringlit[i]+"</h6>")
+				case "bullet":
+					HTMLTextSlice = append(HTMLTextSlice, "<ul>\n"+p.Stringlit[i]+"</ul>")
+				case "para":
+					HTMLTextSlice = append(HTMLTextSlice, "<p>"+p.Stringlit[i]+"</p>")
 				}
 			}
 
-			fmt.Println(HTMLTextSlice)
 			HTMLText := strings.Join(HTMLTextSlice, string('\n'))
 			b := []byte(HTMLText)
 			ioutil.WriteFile(fileHTML, b, 0644)
