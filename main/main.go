@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	md "github.com/audreylim/go-markdown"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	md "github.com/audreylim/go-markdown"
 )
 
 func main() {

@@ -30,8 +30,7 @@ func (s *Scanner) Scan() (ItemType, string) {
 		return s.scanStar()
 	case isHex(ch):
 		s.unread()
-		a, b := s.scanHex()
-		return a, b
+		return s.scanHex()
 	case ch == eof:
 		return EOF, string(eof)
 	}

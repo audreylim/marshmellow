@@ -5,13 +5,6 @@ import (
 	"strings"
 )
 
-// Write to HTML file every time value is sent to channel.
-// TODO: close channels?
-var (
-	FormatterChn = make(chan string)
-	StringlitChn = make(chan string)
-)
-
 type Parser struct {
 	s *Scanner
 
@@ -19,6 +12,9 @@ type Parser struct {
 	tempSlice  []string
 	tempString string
 	tempHeader string
+
+	Formatter []string
+	Stringlit []string
 }
 
 func NewParser(r io.Reader) *Parser {
@@ -27,11 +23,8 @@ func NewParser(r io.Reader) *Parser {
 
 type stateFn func(*Parser) stateFn
 
-func (p *Parser) Parse() string {
-	if v := p.run(p.stateParse()); v == nil {
-		return "eof"
-	}
-	return ""
+func (p *Parser) Parse() {
+	p.run(p.stateParse())
 }
 
 // Chain states until EOF.
@@ -73,17 +66,20 @@ func (p *Parser) stateHeader() stateFn {
 
 	switch t1 {
 	case WS:
-		t2, l2 := p.s.Scan()
-		if t2 == STRINGLIT {
-			tempheader := p.tempHeader
-
-			go func() { FormatterChn <- tempheader }()
-			go func() { StringlitChn <- l2 }()
-
-			p.tempHeader = ""
-			return p.stateParse()
+		_, l2 := p.s.Scan()
+		if len(p.tempHeader) < 7 {
+			p.Formatter = append(p.Formatter, p.tempHeader)
+		} else {
+			// Presume h6 if more than 6#.
+			p.Formatter = append(p.Formatter, "######")
 		}
+		p.Stringlit = append(p.Stringlit, l2)
+
+		p.tempHeader = ""
+		return p.stateParse()
+
 	default:
+		// FIXME: not redirected here when ###noWS after **string*** line. Returns WS as next token instead.
 		p.tempSlice = append(p.tempSlice, p.tempHeader+l1)
 		return p.statePara()
 	}
@@ -97,25 +93,27 @@ func (p *Parser) stateDoubleStar() stateFn {
 	switch t1 {
 	case WS:
 		_, l2 := p.s.Scan()
-		go func() { FormatterChn <- "para" }()
-		go func() { StringlitChn <- "**" + l2 }()
+		p.Formatter = append(p.Formatter, "para")
+		p.Stringlit = append(p.Stringlit, "**"+l2)
 		return p.stateParse()
 
 	case STRINGLIT:
 		if ta, _ := p.s.Scan(); ta == DOUBLESTAR {
-			go func() { FormatterChn <- "para" }()
-			go func() { StringlitChn <- "<b>" + l1 + "</b>" }()
+			p.Formatter = append(p.Formatter, "para")
+			p.Stringlit = append(p.Stringlit, "<b>"+l1+"</b>")
 			return p.stateParse()
 		}
 
 	case NEWLINE:
 		p.tempSlice = append(p.tempSlice, p.tempString)
+
+	default:
+		p.tempSlice = append(p.tempSlice, "**"+l1)
+		return p.statePara()
 	}
 
-	joinSlice := strings.Join(p.tempSlice, "")
-
-	go func() { FormatterChn <- "**" }()
-	go func() { StringlitChn <- joinSlice }()
+	p.Formatter = append(p.Formatter, "**")
+	p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 
 	p.tempSlice = []string{}
 
@@ -136,10 +134,8 @@ func (p *Parser) stateSingleStar() stateFn {
 				return p.stateSingleStar()
 			}
 			if t4 == STRINGLIT {
-				joinSlice := strings.Join(p.tempSlice, "")
-
-				go func() { FormatterChn <- "para" }()
-				go func() { StringlitChn <- joinSlice }()
+				p.Formatter = append(p.Formatter, "bullet")
+				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 
 				p.tempSlice = []string{}
 				p.tempString = l4
@@ -152,24 +148,21 @@ func (p *Parser) stateSingleStar() stateFn {
 
 	case STRINGLIT:
 		if tok, _ := p.s.Scan(); tok == SINGLESTAR {
-			go func() { FormatterChn <- "para" }()
-			go func() { StringlitChn <- "<i>" + l1 + "</li>" }()
+			p.Formatter = append(p.Formatter, "para")
+			p.Stringlit = append(p.Stringlit, "<i>"+l1+"</i>")
 
 			return p.stateParse()
 		}
 
-		// FIXME: not responding to != nil.
-		if p.tempSlice != nil {
-			joinSlice := strings.Join(p.tempSlice, "")
-
-			go func() { FormatterChn <- "bullet" }()
-			go func() { StringlitChn <- joinSlice }()
-
+		joinSlice := strings.Join(p.tempSlice, "")
+		if joinSlice != "" {
+			p.Formatter = append(p.Formatter, "bullet")
+			p.Stringlit = append(p.Stringlit, joinSlice)
 			p.tempSlice = []string{}
 		}
 
-		go func() { FormatterChn <- "para" }()
-		go func() { StringlitChn <- "*" + l1 }()
+		p.Formatter = append(p.Formatter, "para")
+		p.Stringlit = append(p.Stringlit, "*"+l1)
 
 		return p.stateParse()
 
@@ -177,10 +170,8 @@ func (p *Parser) stateSingleStar() stateFn {
 		p.tempSlice = append(p.tempSlice, p.tempString)
 	}
 
-	joinSlice := strings.Join(p.tempSlice, "")
-
-	go func() { FormatterChn <- "*" }()
-	go func() { StringlitChn <- joinSlice }()
+	p.Formatter = append(p.Formatter, "*")
+	p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 
 	p.tempSlice = []string{}
 	return p.stateParse()
@@ -222,10 +213,8 @@ func (p *Parser) statePara() stateFn {
 		return p.statePara()
 	}
 
-	joinSlice := strings.Join(p.tempSlice, "")
-
-	go func() { FormatterChn <- "para" }()
-	go func() { StringlitChn <- joinSlice }()
+	p.Formatter = append(p.Formatter, "para")
+	p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 
 	p.tempSlice = []string{}
 	return p.stateParse()
