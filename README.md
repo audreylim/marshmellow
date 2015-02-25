@@ -10,7 +10,7 @@ go get github.com/audreylim/marshmellow/...
 
 ## Usage
 
-Processing can be done on multiple files. Just run
+Conversion can be done on multiple files. Just run
 
 ```
 ./marshmellow file1.md file2.md file3.md
