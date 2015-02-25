@@ -36,6 +36,18 @@ becomes
 
 Marshmellow supports up to `h6` headers, ie. `###### Header 6`.
 
+##### Paragraph
+
+```
+Paragraph 1
+```
+
+becomes
+
+```
+<p>Paragraph 1</p>
+```
+
 ##### Bold
 
 ```markdown
