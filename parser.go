@@ -24,7 +24,7 @@ func NewParser(r io.Reader) *Parser {
 
 type stateFn func(*Parser) stateFn
 
-// Start the state machine.
+// Start state machine.
 func (p *Parser) Parse() {
 	p.run(p.stateParse())
 }
@@ -93,7 +93,7 @@ func (p *Parser) stateHeader() stateFn {
 	return p.statePara()
 }
 
-// stateDoubleStar signal either bold text or plain string.
+// stateDoubleStar() signal either bold text or plain string.
 func (p *Parser) stateDoubleStar() stateFn {
 	t1, l1 := p.s.Scan()
 
