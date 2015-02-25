@@ -5,7 +5,7 @@ Marshmellow is a simple markdown processor implemented in Go.
 ## Installation
 
 ```
-go get github.com/audreylim/marshmellow
+go get github.com/audreylim/marshmellow/...
 ```
 
 ## Usage
