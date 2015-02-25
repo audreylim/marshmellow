@@ -1,4 +1,4 @@
-package md
+package mm
 
 import (
 	"io"
@@ -9,9 +9,10 @@ type Parser struct {
 	s *Scanner
 
 	// Temporary storage of values.
-	tempSlice  []string
-	tempString string
-	tempHeader string
+	tempSlice       []string
+	tempString      string
+	tempStringSlice []string
+	tempHeader      string
 
 	Formatter []string
 	Stringlit []string
@@ -23,11 +24,12 @@ func NewParser(r io.Reader) *Parser {
 
 type stateFn func(*Parser) stateFn
 
+// Start the state machine.
 func (p *Parser) Parse() {
 	p.run(p.stateParse())
 }
 
-// Chain states until EOF.
+// State machine: Chain states until EOF.
 func (p *Parser) run(state stateFn) stateFn {
 	newstate := state
 	if newstate != nil {
@@ -36,7 +38,10 @@ func (p *Parser) run(state stateFn) stateFn {
 	return nil
 }
 
+//
 // State functions.
+//
+
 func (p *Parser) stateParse() stateFn {
 	// t stands for token, and l stands for string literal returned by Scan() functions.
 	t, l := p.s.Scan()
@@ -61,10 +66,12 @@ func (p *Parser) stateParse() stateFn {
 	return nil
 }
 
+// Accept # Header 1. If #Header 1, return as string in paragraph.
 func (p *Parser) stateHeader() stateFn {
 	t1, l1 := p.s.Scan()
 
 	switch t1 {
+	// Check WS after Hex token.
 	case WS:
 		_, l2 := p.s.Scan()
 		if len(p.tempHeader) < 7 {
@@ -75,79 +82,97 @@ func (p *Parser) stateHeader() stateFn {
 		}
 		p.Stringlit = append(p.Stringlit, l2)
 
+		// Always reset temp storage after appending to Formatter or Stringlit.
 		p.tempHeader = ""
 		return p.stateParse()
-
-	default:
-		// FIXME: not redirected here when ###noWS after **string*** line. Returns WS as next token instead.
-		p.tempSlice = append(p.tempSlice, p.tempHeader+l1)
-		return p.statePara()
 	}
 
-	return p.stateParse()
+	// If not followed by WS, store string in tempHeader and send to paragraph state.
+	// FIXME: not redirected here when ###noWS after **string*** line. Returns WS as next token instead.
+	p.tempSlice = append(p.tempSlice, p.tempHeader+l1)
+	return p.statePara()
 }
 
+// stateDoubleStar signal either bold text or plain string.
 func (p *Parser) stateDoubleStar() stateFn {
 	t1, l1 := p.s.Scan()
 
 	switch t1 {
+	// If WS, not bold text.
+	// >> ** not bold text.
+	// Send to statePara().
 	case WS:
 		_, l2 := p.s.Scan()
-		p.Formatter = append(p.Formatter, "para")
-		p.Stringlit = append(p.Stringlit, "**"+l2)
-		return p.stateParse()
+		p.tempSlice = append(p.tempSlice, "** "+l2)
+		return p.statePara()
 
 	case STRINGLIT:
+		// Check if stringliteral is followed by **, in which case it is bold text.
+		// >> **bold text**
 		if ta, _ := p.s.Scan(); ta == DOUBLESTAR {
-			p.Formatter = append(p.Formatter, "para")
-			p.Stringlit = append(p.Stringlit, "<b>"+l1+"</b>")
-			return p.stateParse()
+			p.tempSlice = append(p.tempSlice, "<b>"+l1+"</b>")
+		} else {
+			// stringlit not followed by **
+			// >> **stringlit
+			p.tempSlice = append(p.tempSlice, "** "+l1)
 		}
 
+		// >> **\n
 	case NEWLINE:
-		p.tempSlice = append(p.tempSlice, p.tempString)
+		p.Formatter = append(p.Formatter, "para")
+		p.Stringlit = append(p.Stringlit, "**")
+		return p.stateParse()
 
+		// >> **#
 	default:
 		p.tempSlice = append(p.tempSlice, "**"+l1)
-		return p.statePara()
 	}
 
-	p.Formatter = append(p.Formatter, "**")
-	p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
-
-	p.tempSlice = []string{}
-
-	return p.stateParse()
+	return p.statePara()
 }
 
+// This state can mean bullets, italics, or string.
 func (p *Parser) stateSingleStar() stateFn {
 	t1, l1 := p.s.Scan()
 
 	switch t1 {
+	// If followed by WS, then not followed by NEWLINE, that is a bullet string.
+	// >> * bullet 1
 	case WS:
-		_, l2 := p.s.Scan()
-		p.tempSlice = append(p.tempSlice, "<li>"+l2+"</li>\n")
-		t3, _ := p.s.Scan()
-		if t3 == NEWLINE {
-			t4, l4 := p.s.Scan()
-			if t4 == SINGLESTAR {
+		t2, l2 := p.s.Scan()
+		if t2 != NEWLINE {
+			bulletstr := p.consumeAllChar()
+			p.tempSlice = append(p.tempSlice, "<li>"+l2+bulletstr+"</li>\n")
+			// Check if next line is *. If it is, return stateSingleStar() and find out context again.
+			t3, l3 := p.s.Scan()
+			switch t3 {
+			case SINGLESTAR:
 				return p.stateSingleStar()
-			}
-			if t4 == STRINGLIT {
+			case DOUBLESTAR:
 				p.Formatter = append(p.Formatter, "bullet")
 				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
-
 				p.tempSlice = []string{}
-				p.tempString = l4
+			case HEX:
+				p.Formatter = append(p.Formatter, "bullet")
+				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
+				p.tempSlice = []string{}
+				p.tempHeader = l3
+				return p.stateHeader()
+			case STRINGLIT:
+				p.Formatter = append(p.Formatter, "bullet")
+				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
+				p.tempSlice = []string{}
+				p.tempString = l3
 				return p.statePara()
 			}
+		} else {
+			p.Formatter = append(p.Formatter, "para")
+			p.Stringlit = append(p.Stringlit, "* ")
+			return p.stateParse()
 		}
 
-	case SINGLESTAR:
-		return p.stateSingleStar()
-
 	case STRINGLIT:
-		if tok, _ := p.s.Scan(); tok == SINGLESTAR {
+		if ta, _ := p.s.Scan(); ta == SINGLESTAR {
 			p.Formatter = append(p.Formatter, "para")
 			p.Stringlit = append(p.Stringlit, "<i>"+l1+"</i>")
 
@@ -170,11 +195,22 @@ func (p *Parser) stateSingleStar() stateFn {
 		p.tempSlice = append(p.tempSlice, p.tempString)
 	}
 
-	p.Formatter = append(p.Formatter, "*")
+	p.Formatter = append(p.Formatter, "para")
 	p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 
 	p.tempSlice = []string{}
 	return p.stateParse()
+}
+
+// Returns bullet string.
+func (p *Parser) consumeAllChar() string {
+	ta, la := p.s.Scan()
+	if ta != NEWLINE {
+		p.tempStringSlice = append(p.tempStringSlice, la)
+		p.consumeAllChar()
+	}
+
+	return strings.Join(p.tempStringSlice, "")
 }
 
 func (p *Parser) statePara() stateFn {
@@ -208,7 +244,7 @@ func (p *Parser) statePara() stateFn {
 			p.tempSlice = append(p.tempSlice, l1+inlineString)
 		}
 
-	case STRINGLIT:
+	case STRINGLIT, HEX:
 		p.tempSlice = append(p.tempSlice, l1)
 		return p.statePara()
 	}
