@@ -152,6 +152,7 @@ func (p *Parser) stateSingleStar() stateFn {
 				p.Formatter = append(p.Formatter, "bullet")
 				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
 				p.tempSlice = []string{}
+				return p.stateDoubleStar()
 			case HEX:
 				p.Formatter = append(p.Formatter, "bullet")
 				p.Stringlit = append(p.Stringlit, strings.Join(p.tempSlice, ""))
