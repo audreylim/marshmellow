@@ -203,17 +203,6 @@ func (p *Parser) stateSingleStar() stateFn {
 	return p.stateParse()
 }
 
-// Consume all tokens until NEWLINE. Returns bullet string.
-func (p *Parser) consumeAllToks() string {
-	ta, la := p.s.Scan()
-	if ta != NEWLINE {
-		p.tempBulletSlice = append(p.tempBulletSlice, la)
-		p.consumeAllToks()
-	}
-
-	return strings.Join(p.tempBulletSlice, "")
-}
-
 func (p *Parser) statePara() stateFn {
 	t1, l1 := p.s.Scan()
 	p.tempSlice = append(p.tempSlice, p.tempString)
@@ -255,6 +244,21 @@ func (p *Parser) statePara() stateFn {
 
 	p.tempSlice = []string{}
 	return p.stateParse()
+}
+
+//
+// Helper functions.
+//
+
+// Consume all tokens until NEWLINE. Returns bullet string.
+func (p *Parser) consumeAllToks() string {
+	ta, la := p.s.Scan()
+	if ta != NEWLINE {
+		p.tempBulletSlice = append(p.tempBulletSlice, la)
+		p.consumeAllToks()
+	}
+
+	return strings.Join(p.tempBulletSlice, "")
 }
 
 func (p *Parser) checkIfItalics(t ItemType, l string) (string, string) {
