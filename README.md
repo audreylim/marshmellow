@@ -44,7 +44,7 @@ Paragraph 1
 
 becomes
 
-```
+```html
 <p>Paragraph 1</p>
 ```
 
