@@ -11,7 +11,7 @@ type Parser struct {
 	// Temporary storage of values.
 	tempSlice       []string
 	tempString      string
-	tempStringSlice []string
+	tempBulletSlice []string
 	tempHeader      string
 
 	Formatter []string
@@ -141,7 +141,7 @@ func (p *Parser) stateSingleStar() stateFn {
 	case WS:
 		t2, l2 := p.s.Scan()
 		if t2 != NEWLINE {
-			bulletstr := p.consumeAllChar()
+			bulletstr := p.consumeAllToks()
 			p.tempSlice = append(p.tempSlice, "<li>"+l2+bulletstr+"</li>\n")
 			// Check if next line is *. If it is, return stateSingleStar() and find out context again.
 			t3, l3 := p.s.Scan()
@@ -202,15 +202,15 @@ func (p *Parser) stateSingleStar() stateFn {
 	return p.stateParse()
 }
 
-// Returns bullet string.
-func (p *Parser) consumeAllChar() string {
+// Consume all tokens until NEWLINE. Returns bullet string.
+func (p *Parser) consumeAllToks() string {
 	ta, la := p.s.Scan()
 	if ta != NEWLINE {
-		p.tempStringSlice = append(p.tempStringSlice, la)
-		p.consumeAllChar()
+		p.tempBulletSlice = append(p.tempBulletSlice, la)
+		p.consumeAllToks()
 	}
 
-	return strings.Join(p.tempStringSlice, "")
+	return strings.Join(p.tempBulletSlice, "")
 }
 
 func (p *Parser) statePara() stateFn {
