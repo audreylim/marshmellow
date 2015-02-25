@@ -1,4 +1,4 @@
-package md
+package mm
 
 import (
 	"bufio"
@@ -43,8 +43,8 @@ func (s *Scanner) scanWhitespace() (ItemType, string) {
 	// Create a buffer and read the current ch into it.
 	var buf bytes.Buffer
 
-	// Read every subsequent ws ch into the buffer.
-	// Non ws ch will cause the loop to exit.
+	// Read every subsequent WS ch into the buffer.
+	// Non WS ch will cause the loop to exit.
 	for {
 		if ch := s.read(); !isWhitespace(ch) {
 			s.unread()
@@ -54,7 +54,7 @@ func (s *Scanner) scanWhitespace() (ItemType, string) {
 		}
 	}
 
-	return WS, ""
+	return WS, " "
 }
 
 func (s *Scanner) scanNewLine() (ItemType, string) {

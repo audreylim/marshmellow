@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	md "github.com/audreylim/go-markdown"
+	mm "github.com/audreylim/go-marshmellow"
 )
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 			HTMLTextSlice = []string{}
 
 			// Parse markdown file.
-			p := md.NewParser(readMDFile)
+			p := mm.NewParser(readMDFile)
 			p.Parse()
 
 			// Write to HTML file.
