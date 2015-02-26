@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/audreylim/go-marshmellow"
+	"github.com/audreylim/marshmellow"
 )
 
 func main() {
