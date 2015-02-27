@@ -13,7 +13,7 @@ go get github.com/audreylim/marshmellow/...
 Conversion can be done on multiple files. Just run
 
 ```
-./marshmellow file1.md file2.md file3.md
+$GOPATH/bin/marshmellow file1.md file2.md file3.md
 ```
 
 This turns the markdown files into corresponding HTML files, ie. `file1.html`, `file2.html`, `file3.html`.
