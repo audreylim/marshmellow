@@ -4,29 +4,29 @@ import (
 	"strings"
 	"testing"
 
-	mm "github.com/audreylim/go-markdown"
+	"github.com/audreylim/go-markdown"
 )
 
 // Ensure the scanner can scan tokens correctly.
 func TestScanner_Scan(t *testing.T) {
 	var tests = []struct {
 		s   string
-		tok md.ItemType
+		tok mm.ItemType
 		l   string
 	}{
-		{s: ``, tok: md.EOF, l: "\x00"},
-		{s: "#", tok: md.HEX, l: "#"},
-		{s: "*", tok: md.SINGLESTAR, l: "*"},
-		{s: "**", tok: md.DOUBLESTAR, l: "**"},
-		{s: " ", tok: md.WS, l: ""},
-		{s: "\t", tok: md.WS, l: ""},
-		{s: "\n", tok: md.NEWLINE, l: ""},
+		{s: ``, tok: mm.EOF, l: "\x00"},
+		{s: "#", tok: mm.HEX, l: "#"},
+		{s: "*", tok: mm.SINGLESTAR, l: "*"},
+		{s: "**", tok: mm.DOUBLESTAR, l: "**"},
+		{s: " ", tok: mm.WS, l: ""},
+		{s: "\t", tok: mm.WS, l: ""},
+		{s: "\n", tok: mm.NEWLINE, l: ""},
 		// FIXME: STRINGLIT test case not breaking test loop.
-		//{s: "a", tok: md.STRINGLIT, l: "a"},
+		//{s: "a", tok: mm.STRINGLIT, l: "a"},
 	}
 
 	for i, tt := range tests {
-		s := md.NewScanner(strings.NewReader(tt.s))
+		s := mm.NewScanner(strings.NewReader(tt.s))
 		tok, l := s.Scan()
 
 		if tt.tok != tok {
