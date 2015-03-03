@@ -18,11 +18,10 @@ func main() {
 	c := genMdFiles(flag.Args())
 	var wg sync.WaitGroup
 	for mdfile := range c {
-		wg.Add(1);
-		go performParseFile(mdfile, &wg);
+		wg.Add(1)
+		go performParseFile(mdfile, &wg)
 	}
-	wg.Wait();
-	return;
+	wg.Wait()
 }
 
 
@@ -43,7 +42,7 @@ func genMdFiles(mdfiles []string) <-chan string {
 	return out
 }
 
-func performParseFile (v string, wg *sync.WaitGroup) {
+func performParseFile(v string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var HTMLTextSlice []string
 	r2 := regexp.MustCompile("[a-zA-Z0-9]+")
